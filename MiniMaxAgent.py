@@ -35,11 +35,11 @@ class MiniMaxAgent(Agent):
         possible = board.possibleMoves()
         mm = moves[:]
 
-        results = []
-        movements = []
-
-        #results = [None]
+        #results = []
         #movements = []
+
+        results = [float("-inf") if maxx else float("inf")]
+        movements = []
 
         for move in possible:
 
@@ -64,43 +64,35 @@ class MiniMaxAgent(Agent):
                 )
                 action = "recursion"
 
-            nb._board
-
             #print(mm, depth, max)
-            #print(" "*depth, "MAX" if maxx else "MIN")
-            #print(" "*depth, action)
-            #print(" "*depth, "res", res, "alpha", alpha, "beta", beta)
-            #if res[0] == None:
-            #    print(" "*depth, "punting...")
-            #    continue
+            print(" "*depth, "MAX" if maxx else "MIN")
+            print(" "*depth, action)
+            print(" "*depth, "res", res, "alpha", alpha, "beta", beta)
             # maximize operations
-            """if maxx:
-                if res[0] > alpha:
+            if maxx:
+                if res[0] > results[0]:
                     results = res
                     movements = moves
-                    alpha = res[0]
-                    if res[0] >= beta: break
+                if results[0] > alpha: alpha = results[0]
+                if results[0] >= beta: break
             # minimize operations
             else:
-                if res[0] < beta:
+                if res[0] < results[0]:
                     results = res
                     movements = moves
-                    beta = res[0]
-                if res[0] <= alpha: break"""
+                if results[0] < beta: beta = results[0]
+                if results[0] <= alpha: break
             
-            results.extend(res)
-            movements.extend(moves)
+            #results.extend(res)
+            #movements.extend(moves)
 
-        if depth > 1:
+        """if depth > 1:
             if maxx: arg = np.argmax(results)
             else: arg = np.argmin(results)
             results = [results[arg]]
             movements = [movements[arg]]
         else:
             prob = self._prob_distribution / self._total_wins
-            #perc = np.unravel_index(np.argmax(prob, axis=None), prob.shape)
-            #movements = [[[perc[0], perc[1]]]]
-            #results = [prob[perc[0]][perc[1]]]
             perc = []
             for move in movements:
                 mm = move[0]
@@ -108,9 +100,9 @@ class MiniMaxAgent(Agent):
             print(perc, movements)
             arg = np.argmax(perc)
             results = [results[arg]]
-            movements = [movements[arg]]
+            movements = [movements[arg]]"""
         
-        #print(" "*depth, "RETURN", results)
+        print(" "*depth, "RETURN", results)
         return results, movements, alpha, beta
 
     # --------------------------------------------------------------------------
