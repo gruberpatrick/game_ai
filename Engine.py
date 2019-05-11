@@ -55,7 +55,8 @@ class Engine:
 
         while self._board._started:
 
-            cls()
+            #cls()
+            print("====================================================")
             _, player_name = self._board.getCurrentPlayer()
             possible = self._board.possibleMoves()
             print("Current: %s" % player_name)
@@ -67,8 +68,9 @@ class Engine:
                 if self._players[player_name][0] == "H" or self._players[player_name][0] == "":
 
                     op = input("Enter x y: ").split(" ")
+                    for it in range(len(op)): op[it] = int(op[it])
                     try:
-                        check = self._board.makeMove(int(op[0]), int(op[1]))
+                        check = self._board.makeMove(op)
                     except:
                         print("Invalid input.")
                         check = False
@@ -78,10 +80,10 @@ class Engine:
 
                     self._players[player_name][1].setBoard(self._board.c())
                     move = self._players[player_name][1].step(possible)
-                    check = self._board.makeMove(move[0], move[1])
+                    check = self._board.makeMove(move)
                     if check: success = True
 
-            self._board.printBoard()
+            #self._board.printBoard()
 
     # --------------------------------------------------------------------------
     def operationSwitch(self, op):

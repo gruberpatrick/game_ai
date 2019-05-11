@@ -11,12 +11,13 @@ class Board:
     _verbose = True
 
     # --------------------------------------------------------------------------
-    def __init__(self, width, height, wins):
+    def __init__(self, width, height, wins, connect_four=False):
 
         # initialize game parameters;
         self._width = width
         self._height = height
         self._wins = wins
+        self._connect_four = connect_four
 
         # initialize the board;
         self._board = np.zeros((self._width, self._height), dtype=np.int64)
@@ -26,7 +27,9 @@ class Board:
 
         self._winner = None
         self._board = np.zeros((self._width, self._height), dtype=np.int64)
-        self._player_pointer = np.random.randint(0, len(self._players))
+        # TODO: randomize starting player
+        #self._player_pointer = np.random.randint(0, len(self._players))
+        self._player_pointer = 0
 
     # --------------------------------------------------------------------------
     def c(self):
@@ -63,7 +66,12 @@ class Board:
         return moves
 
     # --------------------------------------------------------------------------
-    def makeMove(self, x, y, change_player=True):
+    def makeMove(self, move, change_player=True):
+
+        if self._connect_four:
+            x = move
+        else:
+            x, y = move
 
         # check if game started;
         if not self._started:
@@ -130,10 +138,9 @@ class Board:
     # --------------------------------------------------------------------------
     def checkWinningState(self):
 
-        if len(self._board[self._board == 0]) == 0:
-            self._winner = None
-            self._started = False
-            return
+        #if len(self._board[self._board == 0]) > 0:
+        #    self._winner = None
+        #    return
 
         # add base board directions;
         to_check = [self._board, self._board.T]
@@ -201,7 +208,7 @@ if __name__ == "__main__":
     #b.makeMove(1, 2)
     #b.makeMove(0, 1)
     #b.makeMove(1, 0)
-    test_board = [[50,50,0],[50,51,51],[50,51,51]]
+    test_board = [[50,51,51],[50,50,50],[51,50,51]]
     b._board = np.array(test_board)
     b.printBoard()
     print(b.checkWinningState())
