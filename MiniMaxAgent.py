@@ -173,7 +173,7 @@ class MiniMaxAgent(Agent):
 
         # if the tree is at a maximum depth, we estimate the outcome with the
         # previously defined function;
-        if depth >= 6:
+        if depth >= 8:
             res, mov, alpha, beta = self.estimate(board, mm, depth+1, alpha=alpha, beta=beta)
             if self._debug: print(" "*depth, str(depth)+":", " == RETURN", res)
             return res, mov, alpha, beta
@@ -184,9 +184,6 @@ class MiniMaxAgent(Agent):
         # results and movements are returned in the shallowest call;
         results = []
         movements = []
-
-        # create the start time for this branch
-        if depth == 1: self._branch_start_time = float(time.time())
 
         # consider all possible moves;
         for move in possible:
@@ -204,6 +201,9 @@ class MiniMaxAgent(Agent):
 
             # if the move failed, move on to the next one;
             if not check: continue
+
+            # create the start time for this branch
+            if depth == 1: self._branch_start_time = float(time.time())
 
             # call the recursion;
             res, mov, _, _ = self.minimax(
@@ -252,47 +252,62 @@ class MiniMaxAgent(Agent):
         return results, movements, alpha, beta
 
     # --------------------------------------------------------------------------
-    def step(self, possible, time_limit=30):
+    def step(self, possible, time_limit=30, use_prob=False):
 
+        # create placeholders for the time constraints;
         self._start_time = float(time.time())
         self._cutoff = time_limit - 2
         self._branch_cutoff = time_limit / len(possible)
 
+        # own symbol to check against in evaluations;
         self._own_symbol = self._board._players[self._board._player_pointer]
 
+        # hashing and probability distribution initialization;
         hhash = self._board._board.tostring()
         self._prob_distribution = np.zeros_like(self._board._board)
         self._total_wins = 0.0
 
+        # check whether the move has already been cached
         if hhash in self._cache:
 
+            # if so return it from cache
             results, movements, alpha, beta = self._cache[hhash]
         
         else:
 
             results, movements, alpha, beta = self.minimax(self._board, moves=[], depth=1, maxx=True)
 
-            print("ORIGINAL", results, movements)
+            # results containing inf or -inf have not been considered, we have
+            # to remove them for the implementation to work; this is usually
+            # caused by the time constraint;
+            rr = []
+            for res in results:
+                if res == float("inf") or res == float("-inf"): continue
+                rr.append(res)
+            results = rr
 
-            """prob = (self._prob_distribution+.001) / (self._total_wins+.001)
-            perc = []
-            for it in range(len(movements)):
-                mm = movements[it][0]
-                #print(prob)
-                #print(results)
-                perc.append( (prob[mm[1]][mm[0]] * results[it]) + results[it] )"""
-            #arg = np.argmax(perc)
-            arg = np.argmax(results)
+            if self._debug: print("ORIGINAL", results, movements)
 
-            #print("PERC", perc)
-            #print("AGENT DECISIONS", perc, movements)
+            # try the probability distribution that was calculated;
+            if use_prob:
+                prob = (self._prob_distribution+.001) / (self._total_wins+.001)
+                perc = []
+                for it in range(len(movements)):
+                    mm = movements[it][0]
+                    perc.append( (prob[mm[1]][mm[0]] * results[it]) + results[it] )
+                arg = np.argmax(perc)
+            # otherwise, just maximize the function results (standard implementation);
+            else:
+                arg = np.argmax(results)
 
+            print("AGENT DECISIONS", perc if use_prob else results, movements)
+
+            # set the final results and movements;
             results = [results[arg]]
             movements = [movements[arg]]
 
-            #self._cache[hhash] = (results, movements, alpha, beta)
+            # add result to cache;
+            self._cache[hhash] = (results, movements, alpha, beta)
 
         print("Minimax decision: %4.4f using => " % results[0], movements[0], "alpha:%4.4f, beta:%4.4f" % (alpha, beta))
-
         return movements[0][0]
-        

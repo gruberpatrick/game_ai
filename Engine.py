@@ -4,12 +4,11 @@ import os
 import websockets
 import asyncio
 import json
+import time
 
 from Board import Board
 from RandomAgent import RandomAgent
 from MiniMaxAgent import MiniMaxAgent
-
-cls = lambda: os.system('clear')
 
 class Engine:
 
@@ -58,17 +57,16 @@ class Engine:
 
         while self._board._started:
 
-            #cls()
-            #print("====================================================")
+            print("====================================================")
             _, player_name = self._board.getCurrentPlayer()
             possible = self._board.possibleMoves()
             await sendMessage("current_player", str(player_name))
-            #print("Current: %s" % player_name)
-            #self._board.printBoard()
             await sendMessage("board", str(self._board))
             success = False
 
             while not success:
+
+                start = time.time()
 
                 if self._players[player_name][0] == "H" or self._players[player_name][0] == "":
 
@@ -91,6 +89,8 @@ class Engine:
                     print("Agent move", move)
                     check = self._board.makeMove(move)
                     if check: success = True
+
+                print("[NOTIFICATION] Took", time.time() - start, "seconds")
 
             #self._board.printBoard()
             await sendMessage("board", str(self._board))
@@ -154,7 +154,7 @@ async def sendMessageAndAwaitResponse(ttype, message):
 # --------------------------------------------------------------------------
 if __name__ == "__main__":
     #e = Engine(7, 6, 3)
-    e = Engine(6, 7, 4, connect_four=True)
+    e = Engine(4, 4, 4, connect_four=False)
     start_server = websockets.serve(socketHook, 'localhost', 8765)
     asyncio.get_event_loop().run_until_complete(start_server)
     asyncio.get_event_loop().run_forever()
