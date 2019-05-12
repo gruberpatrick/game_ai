@@ -13,35 +13,61 @@ class MiniMaxAgent(Agent):
     def evaluate(self, board, moves=[], depth=1, alpha=float("-inf"), 
             beta=float("inf")):
 
-        # TODO: normalize the occurences per branch when adding to the
-        # prob_distribution
+        # if the board is in an end state, we can easily evaluate if the past
+        # moves were good choices;
 
-        res = -(1.0 / depth) - 200.0
+        # by default they are bad;
+        res = -(1.0 / depth) - 100.0
 
+        # we'll use the winner to determine the outcome;
         winner = board._winner
 
+        # if the agent is the winner, consider the depth of the graph to
+        # distinguish between multiple winning outcomes; this means that the 
+        # shortest path is used;
         if winner == self._own_symbol:
             res = (1.0 / depth) + 100
+            # keep the probability of the current outcome;
             mask = np.where(board._board == ord(self._own_symbol), 1, 0)
             self._prob_distribution += mask
+        # if the board is a draw, we use a lower numbered outcome; to prioritize
+        # the winning outcomes;
         elif not winner:
             res = (1.0 / depth) + 50
+            # keep the probability of the current outcome;
             mask = np.where(board._board == ord(self._own_symbol), 1, 0)
             self._prob_distribution += mask
 
+        # use the amount of total evaluations for the probabilities;
         self._total_wins += 1
 
+        # pass the data to the recursive calls;
         return res, [moves], alpha, beta
 
     # --------------------------------------------------------------------------
-    def estimateRow(self, row):
+    def evaluateSeries(self, ID, checks):
 
-        row = np.flip(row)
+        # find the longest consecutive occurences of a given ID in the 
+        # previously defined check arrays;
 
-        series = 0.0
         last_elem = -1
-
+        series = 0.0
         longest_series = 0.0
+
+        for row in checks:
+            for elem in row:
+                if elem != last_elem:
+                    last_elem = elem
+                    series = 1.0
+                    continue
+                if elem == last_elem and elem == ID:
+                    series += 1.0
+                if series > longest_series: longest_series = series
+
+        return longest_series
+
+    # --------------------------------------------------------------------------
+    def estimateRow(self, row):
 
         """
         GOOD:
@@ -65,13 +91,17 @@ class MiniMaxAgent(Agent):
 
         """
 
-        # if row is full, nothing
+        # if row is full, we want to prioritize that outcome over a loss;
         if len(row[row == 0]) == 0: return 0
 
+        series = 0.0
         checks = []
         player = -1
         opponent = -1
 
+        # prepare all the worst and best case scenarios; the idea is that we
+        # want to evaluate who would have the upper hand if all the free spots
+        # were taken up by only one player;
         for p in self._board._players:
             player = ord(p)
             for o in self._board._players:
@@ -80,39 +110,18 @@ class MiniMaxAgent(Agent):
                 check = np.where(row != player, opponent, player)
                 checks.append(check)
 
-        last_elem = -1
-        series = 0.0
-        player_series = 0.0
+        # evaluate the worst case scenarios;
+        player_series = self.evaluateSeries(player, checks)
+        opponent_series = self.evaluateSeries(opponent, checks)
 
-        for row in checks:
-            for elem in row:
-                if elem != last_elem:
-                    last_elem = elem
-                    series = 1.0
-                    continue
-                if elem == last_elem and elem == player:
-                    series += 1.0
-                if series > player_series: player_series = series
-
-        last_elem = -1
-        series = 0.0
-        opponent_series = 0.0
-
-        for row in checks:
-            for elem in row:
-                if elem != last_elem:
-                    last_elem = elem
-                    series = 1.0
-                    continue
-                if elem == last_elem and elem == player:
-                    series += 1.0
-                if series > opponent_series: opponent_series = series
-
+        # return which senario is more dominant;
         if player_series > opponent_series and player_series >= self._board._wins: 
             return player_series / len(checks[0])
         elif opponent_series >= self._board._wins:
             return -(opponent_series / len(checks[0]))
 
+        # if they are evenly distributed, we don't want to consider them, but
+        # still prioritize over losses;
         return 0
 
     # --------------------------------------------------------------------------
@@ -147,40 +156,56 @@ class MiniMaxAgent(Agent):
     def minimax(self, board, moves=[], depth=1, maxx=True, alpha=float("-inf"), 
             beta=float("inf")):
 
+        # this is pretty much a standard implementation of the minimax
+        # algorithm; the only modification is that the shallowest call returns
+        # all the results instead of the maximized one; this allows for
+        # a final evaluation outside of the call;
+
+        # get all possible and previous moves; 
         possible = board.possibleMoves()
         mm = moves[:]
 
+        # if the board is in an end state, evaluate the result;
         if not board._started:
             res, mov, alpha, beta = self.evaluate(board, mm, depth+1, alpha=alpha, beta=beta)
             if self._debug: print(" "*depth, str(depth)+":", " == RETURN", res)
             return res, mov, alpha, beta
 
+        # if the tree is at a maximum depth, we estimate the outcome with the
+        # previously defined function;
         if depth >= 6:
             res, mov, alpha, beta = self.estimate(board, mm, depth+1, alpha=alpha, beta=beta)
             if self._debug: print(" "*depth, str(depth)+":", " == RETURN", res)
             return res, mov, alpha, beta
 
+        # tracker is used both for the min, as well as the max result
         tracker = float("-inf") if maxx else float("inf")
+
+        # results and movements are returned in the shallowest call;
         results = []
         movements = []
-        total = len(possible)
-        counter = 1.0
 
+        # create the start time for this branch
+        if depth == 1: self._branch_start_time = float(time.time())
+
+        # consider all possible moves;
         for move in possible:
 
+            # if we are at a deep level, consider the time constraint and exit
+            # the tree with the current information;
             if depth > 1:
                 total_stop = float(time.time()) - self._start_time >= self._cutoff
                 branch_stop = float(time.time()) - self._branch_start_time >= self._branch_cutoff
                 if total_stop or branch_stop: break
 
+            # copy the board and make the move;
             nb = board.c()
             check = nb.makeMove(move)
 
+            # if the move failed, move on to the next one;
             if not check: continue
 
-            if depth == 1:
-                self._branch_start_time = float(time.time())
-
+            # call the recursion;
             res, mov, _, _ = self.minimax(
                 nb, 
                 moves = mm + [move],
@@ -190,9 +215,11 @@ class MiniMaxAgent(Agent):
                 beta = beta
             )
 
+            # only use if it's not working correctly;
             if self._debug: print(" "*depth, str(depth)+":", "MAX" if maxx else "MIN")
             if self._debug: print(" "*depth, str(depth)+":", "res", res, "results", results, "alpha", alpha, "beta", beta)
-            # maximize operations
+
+            # maximize operations, according to the standard implementation;
             if maxx:
                 if depth > 1:
                     if res > tracker:
@@ -205,12 +232,9 @@ class MiniMaxAgent(Agent):
                         alpha = tracker
                         if self._debug: print(" "*depth, str(depth)+":", "new alpha", alpha)
                 else:
-                    if self._debug: print("\t\rCalculating", counter / total * 100, "%", end="")
                     results.append(res)
                     movements.extend(mov)
-                    counter += 1
-                
-            # minimize operations
+            # minimize operations, according to the standard implementation;
             else:
                 if res < tracker:
                     tracker = res
@@ -221,12 +245,10 @@ class MiniMaxAgent(Agent):
                 if tracker < beta: 
                     beta = tracker
                     if self._debug: print(" "*depth, str(depth)+":", "new beta", beta)
-            #results.extend(res)
-            #movements.extend(moves)
         
+        # return 
         if self._debug: print(" "*depth, str(depth)+":", "RETURN", tracker if depth > 1 else results)
         if depth > 1: return tracker, movements, alpha, beta
-        print("")
         return results, movements, alpha, beta
 
     # --------------------------------------------------------------------------
@@ -252,18 +274,18 @@ class MiniMaxAgent(Agent):
 
             print("ORIGINAL", results, movements)
 
-            prob = (self._prob_distribution+.001) / (self._total_wins+.001)
+            """prob = (self._prob_distribution+.001) / (self._total_wins+.001)
             perc = []
             for it in range(len(movements)):
                 mm = movements[it][0]
                 #print(prob)
                 #print(results)
-                perc.append( (prob[mm[1]][mm[0]] * results[it]) + results[it] )
+                perc.append( (prob[mm[1]][mm[0]] * results[it]) + results[it] )"""
             #arg = np.argmax(perc)
             arg = np.argmax(results)
 
             #print("PERC", perc)
-            print("AGENT DECISIONS", perc, movements)
+            #print("AGENT DECISIONS", perc, movements)
 
             results = [results[arg]]
             movements = [movements[arg]]

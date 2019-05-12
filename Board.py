@@ -35,6 +35,7 @@ class Board:
     # --------------------------------------------------------------------------
     def c(self):
 
+        # only copy elements that are neccessary;
         b = Board(self._width, self._height, self._wins, connect_four=self._connect_four)
         b._board = copy.deepcopy(self._board)
         b._players = self._players[:]
@@ -47,6 +48,7 @@ class Board:
     # --------------------------------------------------------------------------
     def getCurrentPlayer(self):
 
+        # return the current player;
         return self._player_pointer, self._players[self._player_pointer]
 
     # --------------------------------------------------------------------------
@@ -66,10 +68,12 @@ class Board:
 
         moves = []
 
+        # return the current moves that are possible; 2D for tic tac toe
         if not self._connect_four:
             for it in range(self._board.shape[0]):
                 for jt in range(self._board.shape[1]):
                     if self._board[it][jt] == 0: moves.append([jt, it])
+        # and 1D for connect four;
         else:
             board_t = self._board.T
             for it in range(len(board_t)):
@@ -221,6 +225,7 @@ class Board:
     # --------------------------------------------------------------------------
     def printBoard(self):
 
+        # print the board to the console;
         for it in range(self._board.shape[0]):
             for jt in range(self._board.shape[1]):
                 print("-" if self._board[it][jt] == 0 else chr(self._board[it][jt]), end="\t")
@@ -231,6 +236,7 @@ class Board:
 
         result = ""
 
+        # return the board as a string representation;
         for it in range(self._board.shape[0]):
             for jt in range(self._board.shape[1]):
                 result += ("-" if self._board[it][jt] == 0 else chr(self._board[it][jt])) + "\t"
