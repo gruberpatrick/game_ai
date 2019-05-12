@@ -9,6 +9,7 @@ class Board:
     _started = False
     _player_pointer = 0
     _verbose = True
+    _winner = None
 
     # --------------------------------------------------------------------------
     def __init__(self, width, height, wins, connect_four=False):
@@ -28,13 +29,20 @@ class Board:
         self._winner = None
         self._board = np.zeros((self._width, self._height), dtype=np.int64)
         # TODO: randomize starting player
-        #self._player_pointer = np.random.randint(0, len(self._players))
-        self._player_pointer = 0
+        self._player_pointer = np.random.randint(0, len(self._players))
+        #self._player_pointer = 0
 
     # --------------------------------------------------------------------------
     def c(self):
 
-        return copy.deepcopy(self)
+        b = Board(self._width, self._height, self._wins, connect_four=self._connect_four)
+        b._board = copy.deepcopy(self._board)
+        b._players = self._players[:]
+        b._started = self._started
+        b._player_pointer = self._player_pointer
+        b._verbose = self._verbose
+
+        return b
 
     # --------------------------------------------------------------------------
     def getCurrentPlayer(self):
@@ -58,10 +66,14 @@ class Board:
 
         moves = []
 
-        for it in range(self._board.shape[0]):
-            for jt in range(self._board.shape[1]):
-
-                if self._board[it][jt] == 0: moves.append([jt, it])
+        if not self._connect_four:
+            for it in range(self._board.shape[0]):
+                for jt in range(self._board.shape[1]):
+                    if self._board[it][jt] == 0: moves.append([jt, it])
+        else:
+            board_t = self._board.T
+            for it in range(len(board_t)):
+                if board_t[it][0] == 0: moves.append([it, 0])
 
         return moves
 
@@ -69,7 +81,7 @@ class Board:
     def makeMove(self, move, change_player=True):
 
         if self._connect_four:
-            x = move
+            x = move[0]
         else:
             x, y = move
 
@@ -77,6 +89,21 @@ class Board:
         if not self._started:
             if self._verbose: print("[ERROR] Game hasn't started yet.")
             return False
+
+        # TODO: check and set y accoding to connect 4 rules
+        if self._connect_four:
+            y = -1
+            board_t = self._board.T[x]
+            for it in range(len(board_t)+1):
+                #print(board_t)
+                if it == len(board_t):
+                    y = len(board_t) - 1
+                    break
+                elif board_t[it] != 0:
+                    y = it - 1
+                    break
+
+        #print(x, y)
 
         # check if move out of bounds;
         if x >= self._board.shape[1] or y >= self._board.shape[0] or x < 0 or y < 0:
@@ -104,6 +131,9 @@ class Board:
             self._winner = winner
             if self._verbose: print("Player '%s' won the game."% (winner))
             self._started = False
+        if not winner and not self._started:
+            self._winner = False
+            if self._verbose: print("Draw")
 
         return True
 
@@ -138,9 +168,8 @@ class Board:
     # --------------------------------------------------------------------------
     def checkWinningState(self):
 
-        #if len(self._board[self._board == 0]) > 0:
-        #    self._winner = None
-        #    return
+        if len(self._board[self._board == 0]) == 0:
+            self._started = False
 
         # add base board directions;
         to_check = [self._board, self._board.T]
@@ -197,18 +226,30 @@ class Board:
                 print("-" if self._board[it][jt] == 0 else chr(self._board[it][jt]), end="\t")
             print("")
 
+    # --------------------------------------------------------------------------
+    def __str__(self):
+
+        result = ""
+
+        for it in range(self._board.shape[0]):
+            for jt in range(self._board.shape[1]):
+                result += ("-" if self._board[it][jt] == 0 else chr(self._board[it][jt])) + "\t"
+            result += "\n"
+
+        return result
+
 if __name__ == "__main__":
-    b = Board(3, 3, 3)
-    #b.addPlayer("O")
-    #b.addPlayer("X")
-    #b.printBoard()
-    #b.startGame()
-    #b.makeMove(1, 1)
+    b = Board(3, 3, 3, connect_four=True)
+    b.addPlayer("O")
+    b.addPlayer("X")
+    b.printBoard()
+    b.startGame()
     #b.makeMove(0, 2)
     #b.makeMove(1, 2)
     #b.makeMove(0, 1)
     #b.makeMove(1, 0)
-    test_board = [[50,51,51],[50,50,50],[51,50,51]]
+    test_board = [[0,0,0],[0,0,0],[0,50,0]]
     b._board = np.array(test_board)
+    b.makeMove([1])
     b.printBoard()
     print(b.checkWinningState())
