@@ -309,5 +309,5 @@ class MiniMaxAgent(Agent):
             # add result to cache;
             self._cache[hhash] = (results, movements, alpha, beta)
 
-        print("Minimax decision: %4.4f using => " % results[0], movements[0], "alpha:%4.4f, beta:%4.4f" % (alpha, beta))
+        #print("Minimax decision: %4.4f using => " % results[0], movements[0], "alpha:%4.4f, beta:%4.4f" % (alpha, beta))
         return movements[0][0]

@@ -27,7 +27,9 @@ class Board:
     def reset(self):
 
         self._winner = None
+        self._started = False
         self._board = np.zeros((self._width, self._height), dtype=np.int64)
+
         # TODO: randomize starting player
         self._player_pointer = np.random.randint(0, len(self._players))
         #self._player_pointer = 0
