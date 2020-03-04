@@ -1,7 +1,8 @@
 
 import numpy as np
 
-from Agent import Agent
+from agents.agent import Agent
+
 
 class RandomAgent(Agent):
 

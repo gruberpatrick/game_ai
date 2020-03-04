@@ -2,6 +2,7 @@
 import numpy as np
 import copy
 
+
 class Board:
 
     _board = []
@@ -19,6 +20,8 @@ class Board:
         self._height = height
         self._wins = wins
         self._connect_four = connect_four
+        self._state_size = width * height
+        self._action_size = self._state_size
 
         # initialize the board;
         self._board = np.zeros((self._width, self._height), dtype=np.int64)
@@ -48,25 +51,27 @@ class Board:
         return b
 
     # --------------------------------------------------------------------------
-    def getCurrentPlayer(self):
+    def get_current_player(self):
 
         # return the current player;
         return self._player_pointer, self._players[self._player_pointer]
 
     # --------------------------------------------------------------------------
-    def addPlayer(self, symbol):
+    def add_player(self, symbol):
 
         # do not allow new players after game has started;
         if self._started:
-            if self._verbose: print("[ERROR] Game already started.")
+            if self._verbose:
+                print("[ERROR] Game already started.")
             return
-        
+
         # add a new player to the game;
         self._players.append(symbol)
-        if self._verbose: print("Added player '%s'." % symbol)
+        if self._verbose:
+            print("Added player '%s'." % symbol)
 
     # --------------------------------------------------------------------------
-    def possibleMoves(self):
+    def possible_moves(self):
 
         moves = []
 
@@ -74,7 +79,8 @@ class Board:
         if not self._connect_four:
             for it in range(self._board.shape[0]):
                 for jt in range(self._board.shape[1]):
-                    if self._board[it][jt] == 0: moves.append([jt, it])
+                    if self._board[it][jt] == 0:
+                        moves.append([jt, it])
         # and 1D for connect four;
         else:
             board_t = self._board.T
@@ -84,7 +90,7 @@ class Board:
         return moves
 
     # --------------------------------------------------------------------------
-    def makeMove(self, move, change_player=True):
+    def make_move(self, move, change_player=True):
 
         if self._connect_four:
             x = move[0]
@@ -93,7 +99,8 @@ class Board:
 
         # check if game started;
         if not self._started:
-            if self._verbose: print("[ERROR] Game hasn't started yet.")
+            if self._verbose:
+                print("[ERROR] Game hasn't started yet.")
             return False
 
         # TODO: check and set y accoding to connect 4 rules
@@ -113,12 +120,14 @@ class Board:
 
         # check if move out of bounds;
         if x >= self._board.shape[1] or y >= self._board.shape[0] or x < 0 or y < 0:
-            if self._verbose: print("[ERROR] Illegal move (%d, %d)." % (x, y))
+            if self._verbose:
+                print("[ERROR] Illegal move (%d, %d)." % (x, y))
             return False
 
         # check if field already occupied;
         if self._board[y][x] != 0:
-            if self._verbose: print("[ERROR] Field already occupied.")
+            if self._verbose:
+                print("[ERROR] Field already occupied.")
             return False
 
         # get the symbol;
@@ -128,23 +137,27 @@ class Board:
         self._board[y][x] = ord(symbol)
 
         # let the next player make the next move;
-        if change_player: self._player_pointer += 1
-        if self._player_pointer >= len(self._players): self._player_pointer = 0
+        if change_player:
+            self._player_pointer += 1
+        if self._player_pointer >= len(self._players):
+            self._player_pointer = 0
         
         # check if the game is over;
-        winner = self.checkWinningState()
+        winner = self.check_winning_state()
         if winner:
             self._winner = winner
-            if self._verbose: print("Player '%s' won the game."% (winner))
+            if self._verbose:
+                print("Player '%s' won the game." % (winner))
             self._started = False
         if not winner and not self._started:
             self._winner = False
-            if self._verbose: print("Draw")
+            if self._verbose:
+                print("Draw")
 
         return True
 
     # --------------------------------------------------------------------------
-    def checkRow(self, row):
+    def check_row(self, row):
 
         series = 0
         last_elem = -1
@@ -172,7 +185,7 @@ class Board:
         return False, series
 
     # --------------------------------------------------------------------------
-    def checkWinningState(self):
+    def check_winning_state(self):
 
         if len(self._board[self._board == 0]) == 0:
             self._started = False
@@ -195,8 +208,9 @@ class Board:
                 for row in bb:
 
                     # and check whether we have a winner;
-                    winner, series = self.checkRow(row)
-                    if winner: return winner
+                    winner, _ = self.check_row(row)
+                    if winner:
+                        return winner
 
             # otherwise we are checking a diagonal (which is returned by numpy as
             # a 1D array);
@@ -205,17 +219,19 @@ class Board:
                 # else the board is a row;
                 row = bb
                 # find the winner from there;
-                winner, series = self.checkRow(row)
-                if winner: return winner
+                winner, series = self.check_row(row)
+                if winner:
+                    return winner
 
         return False
 
     # --------------------------------------------------------------------------
-    def startGame(self):
+    def start_game(self):
 
         # check the amount of players;
         if len(self._players) < 2:
-            if self._verbose: print("[ERROR] Not enough players in the game.")
+            if self._verbose:
+                print("[ERROR] Not enough players in the game.")
             return False
 
         # reset the board;
@@ -225,7 +241,7 @@ class Board:
         return True
 
     # --------------------------------------------------------------------------
-    def printBoard(self):
+    def print_board(self):
 
         # print the board to the console;
         for it in range(self._board.shape[0]):
@@ -246,18 +262,20 @@ class Board:
 
         return result
 
+
 if __name__ == "__main__":
+
     b = Board(3, 3, 3, connect_four=True)
-    b.addPlayer("O")
-    b.addPlayer("X")
-    b.printBoard()
-    b.startGame()
+    b.add_player("O")
+    b.add_player("X")
+    b.print_board()
+    b.start_game()
     #b.makeMove(0, 2)
     #b.makeMove(1, 2)
     #b.makeMove(0, 1)
     #b.makeMove(1, 0)
-    test_board = [[0,0,0],[0,0,0],[0,50,0]]
+    test_board = [[0, 0, 0],[0, 0, 0],[0, 50, 0]]
     b._board = np.array(test_board)
-    b.makeMove([1])
-    b.printBoard()
-    print(b.checkWinningState())
+    b.make_move([1])
+    b.print_board()
+    print(b.check_winning_state())

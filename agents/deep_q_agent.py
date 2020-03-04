@@ -1,10 +1,10 @@
 
 import numpy as np
 import torch
-import math 
+import math
 import time
 
-from Agent import Agent
+from agents.agent import Agent
 from tensorboardX import SummaryWriter
 
 
@@ -15,21 +15,24 @@ class NN(torch.nn.Module):
     _epsilon_min = .1
 
     # --------------------------------------------------------------------------
-    def __init__(self, state_size, action_size):
+    def __init__(self, state_size, action_size, epsilon=1):
 
         super(NN, self).__init__()
+
+        self._epsilon = epsilon
 
         self._state_size = state_size
         self._action_size = action_size
 
         self._fc1 = torch.nn.Linear(self._state_size, 15)
-        self._fc2 = torch.nn.Linear(15, self._action_size)
+        self._fc2 = torch.nn.Linear(15, 15)
+        self._fc3 = torch.nn.Linear(15, self._action_size)
         self._relu = torch.nn.ReLU()
         self._dropout = torch.nn.Dropout(.4)
         self._softmax = torch.nn.Softmax()
 
         self._opt = torch.optim.Adam(lr=.001, params=self.parameters())
-        self._loss = torch.nn.CrossEntropyLoss()
+        self._loss = torch.nn.NLLLoss()
 
         torch.nn.init.xavier_normal_(self._fc1.weight)
         torch.nn.init.xavier_normal_(self._fc2.weight)
@@ -38,12 +41,12 @@ class NN(torch.nn.Module):
     def forward(self, x):
 
         X = self._fc1(x)
-        #X = self._dropout(X)
         X = self._relu(X)
-
         X = self._fc2(X)
+        X = self._relu(X)
+        X = self._fc3(X)
 
-        return X
+        return self._softmax(X)
 
     # --------------------------------------------------------------------------
     def x_y_to_action(self, x, y):
@@ -106,15 +109,22 @@ class DeepQAgent(Agent):
     _translation = {79: -1, 88: 1}
 
     # --------------------------------------------------------------------------
-    def __init__(self, engine):
+    def __init__(self, engine, params):
 
-        self._nn = NN(9, 9)
+        if "model_name" not in params:
+            self._name = str(time.time())
+            self._nn = NN(engine._board._state_size, engine._board._action_size)
+        else:
+            self._name = params["model_name"]
+            self._nn = NN(engine._board._state_size, engine._board._action_size, epsilon=.001)
+            state_dict = torch.load("./output/" + self._name + ".model")
+            self._nn.load_state_dict(state_dict)
+            self._name += "_continue"
         self._training_count = 0
-        self._name = str(int(time.time()))
         self._writer = SummaryWriter(logdir="./output/DeepQAgent/" + self._name + "_tb/")
 
     # --------------------------------------------------------------------------
-    def preprocessBoard(self, board):
+    def preprocess_board(self, board):
 
         res = []
         for item in board:
@@ -133,21 +143,21 @@ class DeepQAgent(Agent):
         self._own_symbol = self._board._players[self._board._player_pointer]
 
         # reformat the board;
-        board = self.preprocessBoard(self._board._board.flatten().tolist())
+        board = self.preprocess_board(self._board._board.flatten().tolist())
 
         # run through the reinforcement agent;
         x, y, action = self._nn.step(board, possible)
 
         self._states.append(board)
         self._actions.append(action)
-        self._reward += self.getReward()
+        self._reward += self.get_reward()
 
         return x, y
 
     # --------------------------------------------------------------------------
-    def getReward(self):
+    def get_reward(self):
 
-        winner = self._board.checkWinningState()
+        winner = self._board.check_winning_state()
 
         if winner is not False:
 
@@ -159,7 +169,7 @@ class DeepQAgent(Agent):
         return 1
 
     # --------------------------------------------------------------------------
-    def getBestBatches(self, percentile=.8):
+    def get_best_batches(self, percentile=.8):
 
         states = []
         actions = []
@@ -181,9 +191,9 @@ class DeepQAgent(Agent):
         return states, actions, rewards, threshold
 
     # --------------------------------------------------------------------------
-    def endGame(self):
+    def end_game(self):
 
-        self._reward += self.getReward()
+        self._reward += self.get_reward()
 
         self._final_states.append(self._states)
         self._final_actions.append(self._actions)
@@ -198,7 +208,7 @@ class DeepQAgent(Agent):
             if self._nn._epsilon > self._nn._epsilon_min:
                 self._nn._epsilon *= self._nn._epsilon_decay
 
-            states, actions, rewards, threshold = self.getBestBatches(percentile=80)
+            states, actions, rewards, threshold = self.get_best_batches(percentile=80)
 
             total = math.ceil(len(states) / self._batch_size)
             losses = []

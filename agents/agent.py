@@ -2,22 +2,22 @@
 class Agent:
 
     # --------------------------------------------------------------------------
-    def __init__(self, engine):
+    def __init__(self, engine, params):
 
         self._engine = engine
 
     # --------------------------------------------------------------------------
-    def setBoard(self, board):
-        
+    def set_board(self, board):
+
         self._board = board
         self._board._verbose = False
 
     # --------------------------------------------------------------------------
     def step(self):
 
-        pass
+        raise Exception("Not implemented.")
 
     # --------------------------------------------------------------------------
-    def endGame(self):
+    def end_game(self):
 
-        pass
+        raise Exception("Not implemented.")
