@@ -24,12 +24,12 @@ class NN(torch.nn.Module):
         self._state_size = state_size
         self._action_size = action_size
 
-        self._fc1 = torch.nn.Linear(self._state_size, 15)
-        self._fc2 = torch.nn.Linear(15, 15)
-        self._fc3 = torch.nn.Linear(15, self._action_size)
+        self._fc1 = torch.nn.Linear(self._state_size, 256)
+        self._fc2 = torch.nn.Linear(256, 125)
+        self._fc3 = torch.nn.Linear(125, self._action_size)
         self._relu = torch.nn.ReLU()
         self._dropout = torch.nn.Dropout(.4)
-        self._softmax = torch.nn.Softmax()
+        self._softmax = torch.nn.LogSoftmax()
 
         self._opt = torch.optim.Adam(lr=.001, params=self.parameters())
         self._loss = torch.nn.NLLLoss()
@@ -74,12 +74,11 @@ class NN(torch.nn.Module):
 
         else:
 
-            state = torch.Tensor([state]).float()
+            state = torch.Tensor(state).float()
             linear = self.forward(state)
-            prob = self._softmax(linear)[0].detach().numpy()
+            prob = linear[0].detach().numpy()
 
             for it in range(len(prob)):
-
                 x, y = self.action_to_x_y(it)
                 if [x, y] not in possible:
                     prob[it] = 0
@@ -108,18 +107,25 @@ class DeepQAgent(Agent):
 
     _translation = {79: -1, 88: 1}
 
+    _encoding = {}
+    _encoding_counter = 0
+
     # --------------------------------------------------------------------------
     def __init__(self, engine, params):
 
+        self._state_size = engine._board._state_size
+        self._action_size = engine._board._action_size
+
         if "model_name" not in params:
             self._name = str(time.time())
-            self._nn = NN(engine._board._state_size, engine._board._action_size)
+            self._nn = NN(math.factorial(self._state_size), engine._board._action_size)
         else:
             self._name = params["model_name"]
-            self._nn = NN(engine._board._state_size, engine._board._action_size, epsilon=.001)
+            self._nn = NN(math.factorial(self._state_size), engine._board._action_size, epsilon=.001)
             state_dict = torch.load("./output/" + self._name + ".model")
             self._nn.load_state_dict(state_dict)
             self._name += "_continue"
+
         self._training_count = 0
         self._writer = SummaryWriter(logdir="./output/DeepQAgent/" + self._name + "_tb/")
 
@@ -143,12 +149,19 @@ class DeepQAgent(Agent):
         self._own_symbol = self._board._players[self._board._player_pointer]
 
         # reformat the board;
-        board = self.preprocess_board(self._board._board.flatten().tolist())
+        board = self._board._board.flatten().tolist()
+
+        # encode the state values to a single integer value;
+        if str(board) not in self._encoding:
+            self._encoding[str(board)] = self._encoding_counter
+            self._encoding_counter += 1
+        state = np.zeros((1, math.factorial(self._state_size)))
+        state[0, self._encoding[str(board)]] = 1
 
         # run through the reinforcement agent;
-        x, y, action = self._nn.step(board, possible)
+        x, y, action = self._nn.step(state, possible)
 
-        self._states.append(board)
+        self._states.extend(state)
         self._actions.append(action)
         self._reward += self.get_reward()
 
@@ -169,7 +182,7 @@ class DeepQAgent(Agent):
         return 1
 
     # --------------------------------------------------------------------------
-    def get_best_batches(self, percentile=.8):
+    def get_best_batches(self, percentile=80):
 
         states = []
         actions = []

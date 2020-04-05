@@ -4,6 +4,9 @@ from games.connect_four import Board
 from agents.random_agent import RandomAgent
 from agents.mini_max_agent import MiniMaxAgent
 from agents.deep_q_agent import DeepQAgent
+from agents.q_agent import QAgent
+
+from lib.rendering import initialize_canvas, show_image, reset_image
 
 
 class Engine:
@@ -15,7 +18,8 @@ class Engine:
     # --------------------------------------------------------------------------
     def __init__(self, width, height, wins, connect_four=False):
 
-        self._board = Board(width, height, wins, connect_four=connect_four)
+        self._img = initialize_canvas()
+        self._board = Board(width, height, wins, self._img, connect_four=connect_four)
 
     # --------------------------------------------------------------------------
     def add_player(self, name, player_type, params={}):
@@ -31,6 +35,8 @@ class Engine:
             player.append(DeepQAgent(self, params))
         elif player_type == "random":
             player.append(RandomAgent(self, params))
+        elif player_type == "q":
+            player.append(QAgent(self, params))
 
         self._players[name] = player
         self._board.add_player(name)
@@ -43,6 +49,8 @@ class Engine:
             _, player_name = self._board.get_current_player()
             possible = self._board.possible_moves()
             success = False
+
+            reset_image(self._img)
 
             while not success:
 
@@ -75,7 +83,10 @@ class Engine:
                     if check:
                         success = True
 
-                # print("[NOTIFICATION] Took", time.time() - start, "seconds")
+                self._img = self._board.draw()
+                show_image(self._img, 1000)
+
+                print("[NOTIFICATION] Took", time.time() - start, "seconds")
 
             # self._board.printBoard()
 
@@ -99,7 +110,7 @@ class Engine:
 # --------------------------------------------------------------------------
 if __name__ == "__main__":
 
-    e = Engine(3, 3, 3, connect_four=False)
-    e.add_player("X", "deep-q", {"model_name": "1583284745.688666"})
-    e.add_player("O", "deep-q")
+    e = Engine(6, 7, 3, connect_four=True)
+    e.add_player("X", "random")
+    e.add_player("O", "random")
     e.train()

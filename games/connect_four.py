@@ -1,6 +1,8 @@
-
+import cv2
 import numpy as np
 import copy
+
+from lib.rendering import initialize_canvas, show_image, destroy_image, reset_image
 
 
 class Board:
@@ -13,7 +15,7 @@ class Board:
     _winner = None
 
     # --------------------------------------------------------------------------
-    def __init__(self, width, height, wins, connect_four=False):
+    def __init__(self, width, height, wins, img, connect_four=False):
 
         # initialize game parameters;
         self._width = width
@@ -25,6 +27,36 @@ class Board:
 
         # initialize the board;
         self._board = np.zeros((self._width, self._height), dtype=np.int64)
+
+        self._img = img
+
+    # --------------------------------------------------------------------------
+    def draw(self):
+
+        reset_image(self._img)
+
+        x_ticks = int(self._img.shape[0] / self._width)
+        y_ticks = int(self._img.shape[1] / self._height)
+
+        print(self._width, self._height)
+        print(self._img.shape)
+        print(self._board.shape)
+        print(x_ticks, y_ticks)
+
+        for it in range(self._width):
+            self._img = cv2.line(self._img, (0, (it + 1) * x_ticks), (self._img.shape[0], (it + 1) * x_ticks), (0, 0, 0), 2)
+
+        for it in range(self._height):
+            self._img = cv2.line(self._img, ((it + 1) * y_ticks, 0), ((it + 1) * y_ticks, self._img.shape[1]), (0, 0, 0), 2)
+
+        for x in range(self._width):
+            for y in range(self._height):
+                character = chr(self._board[x, y])
+                self._img = cv2.putText(self._img, character, ((y) * y_ticks, (x + 1) * x_ticks), cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 0, 0), 5)
+
+        print(self._board)
+
+        return self._img
 
     # --------------------------------------------------------------------------
     def reset(self):
@@ -41,7 +73,7 @@ class Board:
     def c(self):
 
         # only copy elements that are neccessary;
-        b = Board(self._width, self._height, self._wins, connect_four=self._connect_four)
+        b = Board(self._width, self._height, self._wins, self._img, connect_four=self._connect_four)
         b._board = copy.deepcopy(self._board)
         b._players = self._players[:]
         b._started = self._started
@@ -141,7 +173,7 @@ class Board:
             self._player_pointer += 1
         if self._player_pointer >= len(self._players):
             self._player_pointer = 0
-        
+
         # check if the game is over;
         winner = self.check_winning_state()
         if winner:

@@ -12,3 +12,7 @@ class RandomAgent(Agent):
         # pick a random move from all possible ones;
         move = possible[np.random.randint(0, len(possible))]
         return move
+    
+    def end_game(self):
+
+        pass
