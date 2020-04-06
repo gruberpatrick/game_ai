@@ -1,5 +1,7 @@
 import math
 import numpy as np
+import json
+import neptune
 
 from agents.agent import Agent
 
@@ -11,19 +13,22 @@ class QAgent(Agent):
     _epsilon_min = .1
 
     # --------------------------------------------------------------------------
-    def __init__(self, engine, params):
+    def __init__(self):
 
-        self._engine = engine
-        self._params = params
-        self._state_size = engine._board._state_size
-        self._action_size = engine._board._action_size
-        self._q = np.zeros((math.factorial(self._state_size), self._action_size))
         self._encoding = {}
         self._encoding_counter = 0
         self._last_state = None
         self._last_action = None
         self._alpha = 0.1
         self._gamma = 0.6
+
+    def set_board(self, board):
+
+        self._board = board
+        self._state_size = board._state_size
+        self._action_size = board._action_size
+        self._q = np.zeros((math.factorial(self._state_size), self._action_size))
+        self._q[:] = .5
     
     # --------------------------------------------------------------------------
     def action_to_x_y(self, action):
@@ -35,35 +40,35 @@ class QAgent(Agent):
     # --------------------------------------------------------------------------
     def get_reward(self):
 
-        winner = self._board.check_winning_state()
-
-        if winner is not False:
-
-            if winner == self._own_symbol:
-                return 100
-            else:
-                return -100
-
-        return 1
+        reward = self._board.get_reward()
+        return reward[self._own_symbol]
 
     # --------------------------------------------------------------------------
-    def step(self, orig_state):
+    def step(self, board, possible, reward, done, args):
+
+        # own symbol to check against in evaluations;
+        self._own_symbol = args["own_symbol"]
 
         # encode the state values to a single integer value;
-        if str(orig_state) not in self._encoding:
-            self._encoding[str(orig_state)] = self._encoding_counter
+        if str(board) not in self._encoding:
+            self._encoding[str(board)] = self._encoding_counter
             self._encoding_counter += 1
-        state = self._encoding[str(orig_state)]
+        state = self._encoding[str(board)]
+
+        neptune.log_metric("Epsilon", self._epsilon)
 
         # random choice (explore environment);
         if self._epsilon > np.random.rand():
             action = -1
-            while self.action_to_x_y(action) not in orig_state:
+            while action not in possible:
                 action = np.random.randint(self._action_size)
 
         # use learned actions;
         else:
             action = np.argmax(self._q[state])
+            while action not in possible:
+                self._q[state][action] = -1
+                action = np.argmax(self._q[state])
 
         # learn;
         if self._last_action and self._last_state:
@@ -75,7 +80,7 @@ class QAgent(Agent):
         self._last_state = state
         self._last_action = action
 
-        return self.action_to_x_y(action)
+        return action
 
     def end_game(self):
 
